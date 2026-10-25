@@ -1,0 +1,24 @@
+Installation and scripted validation PASSED on Nano, 2026-10-25.
+OS: Ubuntu 18.04.6, L4T 32.7.1, aarch64, Python 3.6.9.
+Open3D 0.13.0+c3f9de2 compiled, installed and imported successfully.
+DepthAI 2.24.0.0; NumPy 1.19.5; OpenCV 3.2.0.
+Scanner dependency resolution/import checks: PASS.
+Geometry tests: 3/3 PASS on Nano.
+Synthetic moving-camera TSDF, metric depth and export read-back: PASS.
+Synthetic output: 15,281 points, 29,924 triangles.
+OAK detected over USB3 (SUPER); RGB and both stereo cameras detected.
+Real capture: ten synchronized RGB-D pairs; all ten integrated.
+Hardware export: 119,876 points, 206,701 triangles; PLY read-back PASS.
+Files: cloud.ply (5.9 MB), mesh.ply (8.4 MB), mesh.obj (18 MB).
+Remote models: /home/jw/jetscan-oak-20261024-230914/scans/check-20261025-110229
+logs/finish.exit = 0; logs/software-checks-passed exists.
+Final logs: logs/finish-validation.log and logs/validation.log.
+
+Compatibility: extra 4 GiB swap, older CBLAS enum fix, ARMv8 NumPy setting,
+Open3D 0.13 odometry attribute names, scanner-scoped dependency validation.
+Inherited system UFF/protobuf and launchpadlib/testresources conflicts remain
+recorded separately; JetPack system packages were not changed to resolve them.
+
+Limitations: stationary hardware smoke test; synthetic moving-camera test.
+Real moving-camera tracking, physical scale and accuracy remain unmeasured.
+OBJ exporter warns that triangle normals are not included; PLY exports succeed.
