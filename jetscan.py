@@ -28,11 +28,10 @@ def acceptable(transform, information):
             and np.linalg.det(transform[:3, :3]) > 0.99)
 
 
-def capture(args):
+def camera_frames(stop):
+    """Yield calibrated, synchronized RGB/depth pairs; stop closes the USB device."""
     import depthai as dai
     import cv2
-    root = Path(args.output)
-    root.mkdir(parents=True, exist_ok=False)
     pipeline = dai.Pipeline()
     rgb = pipeline.create(dai.node.ColorCamera)
     rgb.setBoardSocket(dai.CameraBoardSocket.RGB)
@@ -70,51 +69,77 @@ def capture(args):
                     "depth_scale": 1000.0, "depth_units": "millimetres",
                     "mxid": device.getMxId(), "depthai": dai.__version__,
                     "rgb_rectified": True, "max_sync_seconds": 0.02, "frames": []}
-        (root / "metadata.json").write_text(json.dumps(metadata, indent=2))
         device.startPipeline(pipeline)
         queues = [device.getOutputQueue(n, 4, False) for n in ("rgb", "depth")]
         packets = [None, None]
-        start = last = time.monotonic()
-        count = 0
-        try:
-            while count < args.frames:
-                if time.monotonic() - last > 30:
-                    raise RuntimeError("No usable synchronized RGB-D pair for 30 seconds")
-                for i in range(2):
-                    if packets[i] is None:
-                        packets[i] = queues[i].tryGet()
-                if any(p is None for p in packets):
-                    time.sleep(0.002)
-                    continue
-                stamps = [p.getTimestamp().total_seconds() for p in packets]
-                if not matched(*stamps):
-                    packets[int(stamps[1] < stamps[0])] = None
-                    continue
-                color = packets[0].getCvFrame()
-                depth = packets[1].getFrame()
-                packets = [None, None]
-                if color.shape != (360, 640, 3) or depth.shape != (360, 640):
-                    raise RuntimeError("Unexpected stream sizes; refusing incorrect calibration")
-                if np.count_nonzero(depth) < depth.size * 0.05:
-                    continue
-                color = cv2.remap(color, mx, my, cv2.INTER_LINEAR)[:, :, ::-1].copy()
-                if count == 0:
-                    edges = cv2.Canny(np.minimum(depth / 12, 255).astype(np.uint8), 30, 80)
-                    preview = color[:, :, ::-1].copy()
-                    preview[edges > 0] = (0, 255, 0)
-                    if not cv2.imwrite(str(root / "alignment.png"), preview):
-                        raise RuntimeError("Could not save alignment preview")
-                filename = "{:06d}.npz".format(count)
-                np.savez_compressed(str(root / filename), color=color, depth=depth)
-                metadata["frames"].append({"file": filename, "rgb_time": stamps[0],
-                                            "depth_time": stamps[1],
-                                            "valid_fraction": float(np.count_nonzero(depth)/depth.size)})
-                count += 1
-                last = time.monotonic()
-                print("Captured {} / {} ({:.1f}s)".format(count, args.frames, last-start), flush=True)
-        finally:
-            (root / "metadata.json").write_text(json.dumps(metadata, indent=2))
+        last = time.monotonic()
+        while not stop.is_set():
+            if time.monotonic() - last > 30:
+                raise RuntimeError("No usable synchronized RGB-D pair for 30 seconds")
+            for i in range(2):
+                if packets[i] is None:
+                    packets[i] = queues[i].tryGet()
+            if any(p is None for p in packets):
+                time.sleep(0.002)
+                continue
+            stamps = [p.getTimestamp().total_seconds() for p in packets]
+            if not matched(*stamps):
+                packets[int(stamps[1] < stamps[0])] = None
+                continue
+            color = packets[0].getCvFrame()
+            depth = packets[1].getFrame()
+            packets = [None, None]
+            if color.shape != (360, 640, 3) or depth.shape != (360, 640):
+                raise RuntimeError("Unexpected stream sizes; refusing incorrect calibration")
+            if np.count_nonzero(depth) < depth.size * 0.05:
+                continue
+            color = cv2.remap(color, mx, my, cv2.INTER_LINEAR)[:, :, ::-1].copy()
+            last = time.monotonic()
+            yield metadata, color, depth, stamps
+
+
+def write_metadata(root, metadata):
+    temporary = root / "metadata.json.tmp"
+    temporary.write_text(json.dumps(metadata, indent=2))
+    temporary.replace(root / "metadata.json")
+
+
+def save_frame(root, metadata, color, depth, stamps):
+    import cv2
+    count = len(metadata["frames"])
     if count == 0:
+        edges = cv2.Canny(np.minimum(depth / 12, 255).astype(np.uint8), 30, 80)
+        preview = color[:, :, ::-1].copy()
+        preview[edges > 0] = (0, 255, 0)
+        if not cv2.imwrite(str(root / "alignment.png"), preview):
+            raise RuntimeError("Could not save alignment preview")
+    filename = "{:06d}.npz".format(count)
+    np.savez_compressed(str(root / filename), color=color, depth=depth)
+    metadata["frames"].append({"file": filename, "rgb_time": stamps[0],
+                                "depth_time": stamps[1],
+                                "valid_fraction": float(np.count_nonzero(depth)/depth.size)})
+    write_metadata(root, metadata)
+
+
+def capture(args):
+    import threading
+    root = Path(args.output)
+    root.mkdir(parents=True, exist_ok=False)
+    stop = threading.Event()
+    frames = camera_frames(stop)
+    metadata = None
+    try:
+        for calibration, color, depth, stamps in frames:
+            if metadata is None:
+                metadata = dict(calibration, frames=[])
+            save_frame(root, metadata, color, depth, stamps)
+            print("Captured {} / {}".format(len(metadata["frames"]), args.frames), flush=True)
+            if len(metadata["frames"]) >= args.frames:
+                break
+    finally:
+        stop.set()
+        frames.close()
+    if metadata is None:
         raise RuntimeError("No frames captured")
 
 

@@ -22,3 +22,12 @@ recorded separately; JetPack system packages were not changed to resolve them.
 Limitations: stationary hardware smoke test; synthetic moving-camera test.
 Real moving-camera tracking, physical scale and accuracy remain unmeasured.
 OBJ exporter warns that triangle normals are not included; PLY exports succeed.
+
+Web GUI verification (2026-10-25):
+8 unit/integration tests pass locally and on Nano; synthetic fusion test passes.
+Live RGB/depth shown in browser. Browser Start/Stop saved 29 synchronized pairs.
+Recorded playback and slider tested. Offline reconstruction integrated all 29.
+GUI result: 155,713 points, 258,157 triangles; mesh/point cloud rendered in browser.
+Interactive orbit tested. Real GUI dataset: scans/scan-20261025-122420-297260.
+Server: http://10.0.0.4:8080, user cron @reboot configured, cron daemon active.
+Power-cycle startup not tested. Optional systemd installer supplied but not enabled.

@@ -1,7 +1,9 @@
 __pycache__/
 *.py[cod]
 .venv/
-vendor/
+/vendor/
+work/
+/outputs/
 logs/
 scans/
 *.tar.gz

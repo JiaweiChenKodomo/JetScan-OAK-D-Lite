@@ -4,6 +4,31 @@ A headless RGB-D scanner using an OAK-D Lite for RGB capture, stereo depth and
 alignment, and a Jetson Nano for offline RGB-D odometry and colored TSDF fusion.
 It exports colored point clouds and meshes in metres.
 
+## Web GUI: capture, replay and reconstruct from your browser
+
+The GUI is running on the existing Nano at **http://10.0.0.4:8080**. Open it from
+any computer on the same LAN. Click **Start preview**, then **Start capture** and
+**Stop & save**. Select a recording to replay color/depth frames, or click
+**Reconstruct selected** for offline processing. Explore the result with orbit,
+pan and zoom controls, switch between mesh and point cloud, or download exports.
+
+The webserver starts automatically at boot using a user-owned cron entry. It
+does not start recording at boot. No real-time reconstruction is performed.
+See [WEB_GUI.md](WEB_GUI.md) for operating instructions,
+startup management and the optional systemd service.
+
+On a new installation, after completing the base setup below, run on the Nano:
+
+```bash
+cd ~/JetScan-OAK-D-Lite
+bash install-web-user.sh
+```
+
+For Windows deployment, use `deploy.ps1 -Validate -Web`. The GUI requires no new
+Python packages; its 3D viewer assets are served locally. Access is intended for
+a trusted LAN: there is no login screen, so do not expose port 8080 to the internet.
+Pause preview before using camera-related CLI commands below.
+
 **Tested on 2026-10-25:** installation, synthetic moving-camera reconstruction,
 and a ten-frame stationary camera capture/fusion/export test passed. The real
 capture produced 119,876 points and 206,701 triangles, with successful PLY

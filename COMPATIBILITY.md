@@ -126,3 +126,26 @@ logs/finish-retry.log. This change does not claim the broader JetPack environmen
 has no dependency conflicts.
 
 Final odometry validation is recorded in logs/finish-validation.log.
+
+## Browser GUI (2026-10-25)
+
+Added a Python 3.6 standard-library LAN server, live RGB/depth MJPEG streams,
+capture start/stop with per-frame metadata checkpoints, recorded-frame replay,
+offline reconstruction jobs, and a locally served Three.js r128 PLY viewer.
+The camera pipeline is shared with CLI capture; calibration, dimensions, units
+and timestamp pairing remain the same. One camera owner is shared among browsers;
+reconstruction closes the camera and excludes concurrent captures.
+
+Eight tests passed both locally and on the Nano, and the synthetic fusion test
+still passes after factoring the camera generator. Browser testing recorded and
+stopped 29 real frame pairs, replayed them, reconstructed all 29, and rendered the
+155,713-point / 258,157-triangle result in mesh and point-cloud modes. Orbit was
+tested interactively. These are stationary-scene checks, not a claim of measured
+moving-camera accuracy.
+
+Boot startup uses the existing active cron daemon and a marked user @reboot entry.
+Existing cron entries are preserved, and flock prevents duplicate boot/manual
+server processes. This avoids an administrator-password requirement; the optional
+install-web.sh provides a systemd alternative. Boot configuration was inspected;
+the Nano was not rebooted during this deployment. No new Python packages, no
+changes to JetPack, and no changes to camera calibration were required.
