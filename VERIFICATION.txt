@@ -31,3 +31,11 @@ GUI result: 155,713 points, 258,157 triangles; mesh/point cloud rendered in brow
 Interactive orbit tested. Real GUI dataset: scans/scan-20261025-122420-297260.
 Server: http://10.0.0.4:8080, user cron @reboot configured, cron daemon active.
 Power-cycle startup not tested. Optional systemd installer supplied but not enabled.
+
+Recovery update (2026-10-25):
+Observed native DepthAI/OAK abort had stopped the webserver; port 8080 was closed.
+Added restart supervision outside Python and a 60-second abandoned-preview timeout.
+Ten tests pass locally and on Nano, including preserving capture/reconstruction
+during idle checks. Idle Python process was deliberately terminated; supervisor
+restarted it after about five seconds and HTTP 200 returned on port 8080.
+Saved scans preserved. Root cause of OAK crash remains undetermined.

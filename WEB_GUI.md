@@ -46,6 +46,20 @@ and manual starts from opening duplicate servers. Cron must be enabled (it was
 already active on the tested Nano). No dependency packages beyond the scanner
 stack are needed. Re-running the installer updates its own marked entry.
 
+The boot wrapper now supervises Python and restarts it five seconds after an
+unexpected exit, including a native DepthAI abort. `logs/web-supervisor.pid` is
+the wrapper PID; `logs/web.pid` is its current Python child. To stop the supervised
+server intentionally, send SIGTERM to the supervisor, not just its Python child:
+
+```bash
+kill -TERM "$(cat logs/web-supervisor.pid)"
+```
+
+This stops the current instance; the configured boot entry remains in place.
+Run `bash install-web-user.sh` after it exits to start it again. Preview closes
+after 60 seconds without a browser status poll. This idle timeout does not stop
+a recording or reconstruction job.
+
 From Windows, `deploy.ps1 -Validate -Web` installs, validates and enables the GUI.
 For an existing clone, pull updates first, stop the web process while updating,
 and run the installer in the same directory to keep existing scans.
@@ -68,7 +82,7 @@ server per camera/scan directory. The web scan list includes existing CLI scans.
 
 ## Optional systemd service
 
-For supervised restart-on-failure instead of the user cron entry, remove only the
+For systemd-managed restart-on-failure instead of the user cron wrapper, remove only the
 block between `# BEGIN JETSCAN WEB` and `# END JETSCAN WEB` with `crontab -e`, stop
 the current web process, then run from your regular Nano account:
 

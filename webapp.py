@@ -51,6 +51,7 @@ class Scanner:
         self.seq = 0
         self.jpeg = {}
         self.logs = collections.deque(maxlen=120)
+        self.last_viewer = time.monotonic()
 
     def scan_path(self, name):
         if not isinstance(name, str) or not SCAN_ID.fullmatch(name):
@@ -62,6 +63,7 @@ class Scanner:
 
     def state(self):
         with self.lock:
+            self.last_viewer = time.monotonic()
             return dict(mode=self.mode, message=self.message, scan=self.active_scan,
                         frames=self.count, camera_ready=bool(self.jpeg),
                         busy=self.busy, recording=self.recording is not None,
@@ -176,8 +178,12 @@ class Scanner:
             with self.lock:
                 self.recording = None
 
-    def pause_preview(self):
+    def pause_preview(self, only_if_idle=False, now=None):
         with self.lock:
+            if only_if_idle and (self.busy or self.recording or not self.camera or
+                                 self.mode != "preview" or
+                                 (time.monotonic() if now is None else now) - self.last_viewer < 60):
+                return False
             if self.busy:
                 raise Conflict("Reconstruction is running.")
             self.stop_capture()
@@ -194,7 +200,15 @@ class Scanner:
             self.busy = False
             self.jpeg = {}
             self.mode = "idle"
-            self.message = "Camera paused."
+            self.message = "Preview paused after the browser disconnected." if only_if_idle else "Camera paused."
+        return True
+
+    def idle_watch(self):
+        while not self.shutdown.wait(5):
+            try:
+                self.pause_preview(only_if_idle=True)
+            except Conflict:
+                pass
 
     def reconstruct(self, name, voxel=0.01, minimum=0.4, maximum=2.5):
         if not all(isinstance(v, (int, float)) and jetscan.np.isfinite(v) for v in (voxel, minimum, maximum)):
@@ -435,6 +449,7 @@ def main():
     app = Scanner(args.scans)
     server = Server((args.host, args.port), Handler)
     server.app = app
+    threading.Thread(target=app.idle_watch, name="preview-idle-watch", daemon=True).start()
     def stop(*unused):
         app.close()
         threading.Thread(target=server.shutdown, daemon=True).start()

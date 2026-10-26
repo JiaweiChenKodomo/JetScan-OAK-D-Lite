@@ -149,3 +149,22 @@ server processes. This avoids an administrator-password requirement; the optiona
 install-web.sh provides a systemd alternative. Boot configuration was inspected;
 the Nano was not rebooted during this deployment. No new Python packages, no
 changes to JetPack, and no changes to camera calibration were required.
+
+## Native camera crash recovery (2026-10-25)
+
+The web process stopped after DepthAI logged "Device crashed" and aborted Python
+with SIGABRT. Port 8080 was no longer listening. The @reboot entry and cron were
+still intact; the initial exec-only boot wrapper could not recover a process
+that died between reboots. This was not an SSH or firewall failure.
+
+start-web.sh now retains a small shell supervisor outside Python, holds the
+single-instance lock and restarts the web process after five seconds. SIGTERM
+to the supervisor forwards shutdown to its child and exits without restarting.
+The server also closes preview after 60 seconds without browser status polls,
+while preserving active recordings and reconstruction jobs.
+
+Ten tests pass locally and on Nano. An idle-only recovery test deliberately
+terminated the Python child; the same supervisor started a new child and the API
+returned HTTP 200, with port 8080 bound on all interfaces. This verifies recovery
+from an abrupt process exit; it does not establish the cause of the OAK device
+crash or guarantee USB hardware reliability. Existing saved scans were preserved.

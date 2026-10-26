@@ -80,6 +80,28 @@ class WebTests(unittest.TestCase):
         with self.assertRaises(webapp.Conflict):
             self.app.preview()
 
+    def test_abandoned_preview_closes_camera(self):
+        self.app.camera = mock.Mock()
+        self.app.camera.is_alive.return_value = False
+        self.app.mode = "preview"
+        self.assertFalse(self.app.pause_preview(only_if_idle=True, now=self.app.last_viewer + 20))
+        self.assertTrue(self.app.pause_preview(only_if_idle=True, now=self.app.last_viewer + 61))
+        self.app.camera.join.assert_called_once()
+        self.assertTrue(self.app.camera_stop.is_set())
+        self.assertEqual(self.app.mode, "idle")
+
+    def test_idle_timeout_does_not_stop_recording_or_reconstruction(self):
+        self.app.camera = mock.Mock()
+        self.app.recording = ["preserved capture"]
+        self.app.mode = "capturing"
+        self.assertFalse(self.app.pause_preview(only_if_idle=True, now=self.app.last_viewer + 600))
+        self.assertIsNotNone(self.app.recording)
+        self.app.recording = None
+        self.app.mode = "reconstructing"
+        self.app.busy = True
+        self.assertFalse(self.app.pause_preview(only_if_idle=True, now=self.app.last_viewer + 600))
+        self.app.camera.join.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
